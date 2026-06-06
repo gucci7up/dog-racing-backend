@@ -2,11 +2,19 @@ services:
   api:
     build:
       context: .
+    expose:
+      - "3000"
     env_file:
       - .env
     environment:
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
       REDIS_URL: "redis://redis:6379"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mbsport-api.rule=Host(`${TRAEFIK_HOST:-api.mbracesrd.lat}`)"
+      - "traefik.http.routers.mbsport-api.entrypoints=websecure"
+      - "traefik.http.routers.mbsport-api.tls=true"
+      - "traefik.http.services.mbsport-api.loadbalancer.server.port=3000"
     depends_on:
       - postgres
       - redis
