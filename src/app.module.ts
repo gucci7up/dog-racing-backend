@@ -8,6 +8,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
+import { VideosModule } from './modules/videos/videos.module';
+import { RacesModule } from './modules/races/races.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { RedisModule } from './common/redis/redis.module';
     RedisModule,
     AuthModule,
     UsersModule,
+    VideosModule,
+    RacesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

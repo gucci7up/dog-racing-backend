@@ -13,6 +13,13 @@ enum Role {
   PLAYER
 }
 
+enum RaceStatus {
+  OPEN
+  CLOSED
+  RUNNING
+  FINISHED
+}
+
 model User {
   id        String   @id @default(uuid()) @db.Uuid
   username  String   @unique
@@ -21,4 +28,32 @@ model User {
   role      Role     @default(PLAYER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Video {
+  id        String   @id @default(uuid()) @db.Uuid
+  nombre    String   @unique
+  resultado String
+  archivo   String
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  races Race[]
+}
+
+model Race {
+  id        String     @id @default(uuid()) @db.Uuid
+  numero    Int        @unique
+  videoId   String     @db.Uuid
+  resultado String
+  status    RaceStatus @default(OPEN)
+  openAt    DateTime?
+  closeAt   DateTime?
+  runAt     DateTime?
+  finishedAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  video Video @relation(fields: [videoId], references: [id])
 }
