@@ -17,10 +17,18 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('MBSport API')
     .setVersion('1.0.0')
-    .addBearerAuth()
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
+      'bearer',
+    )
     .build();
 
   const swaggerDoc = SwaggerModule.createDocument(app, swaggerConfig);
+  swaggerDoc.security = [{ bearer: [] }];
   SwaggerModule.setup('docs', app, swaggerDoc);
 
   const configService = app.get(ConfigService);
