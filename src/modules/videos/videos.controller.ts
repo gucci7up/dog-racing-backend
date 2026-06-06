@@ -5,13 +5,14 @@ import {
   Delete,
   Get,
   Param,
+  ParseArrayPipe,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
@@ -32,6 +33,27 @@ export class VideosController {
       archivo: dto.archivo,
       activo: dto.activo,
     });
+  }
+
+  @ApiOperation({ summary: 'Insertar videos en bulk' })
+  @ApiBody({ type: CreateVideoDto, isArray: true })
+  @Post('bulk')
+  bulkCreate(
+    @Body(
+      new ParseArrayPipe({
+        items: CreateVideoDto,
+      }),
+    )
+    dtos: CreateVideoDto[],
+  ) {
+    return this.videosService.bulkCreate(
+      dtos.map((dto) => ({
+        nombre: dto.nombre,
+        resultado: dto.resultado,
+        archivo: dto.archivo,
+        activo: dto.activo ?? true,
+      })),
+    );
   }
 
   @ApiQuery({ name: 'activo', required: false, type: Boolean })

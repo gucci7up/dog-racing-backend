@@ -21,6 +21,22 @@ export class VideosService {
     }
   }
 
+  async bulkCreate(items: Array<Pick<Prisma.VideoCreateManyInput, 'nombre' | 'resultado' | 'archivo' | 'activo'>>) {
+    try {
+      const result = await this.prisma.video.createMany({
+        data: items,
+        skipDuplicates: true,
+      });
+      return { insertedCount: result.count };
+    } catch (err) {
+      const prismaError = err as { code?: string };
+      if (prismaError.code === 'P2002') {
+        throw new BadRequestException('nombre ya existe');
+      }
+      throw err;
+    }
+  }
+
   async findAll(params?: { activo?: boolean }) {
     const where: Prisma.VideoWhereInput = {};
     if (typeof params?.activo === 'boolean') where.activo = params.activo;
