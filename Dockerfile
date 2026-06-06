@@ -19,4 +19,4 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma
 RUN npm ci --omit=dev && ./node_modules/.bin/prisma generate
 COPY --from=build /app/dist ./dist
-CMD ["node", "dist/main.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node dist/main.js"]

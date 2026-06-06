@@ -16,8 +16,10 @@ services:
       - "traefik.http.routers.mbsport-api.tls=true"
       - "traefik.http.services.mbsport-api.loadbalancer.server.port=3000"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   postgres:
     image: postgres:16-alpine
@@ -27,6 +29,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   redis:
     image: redis:7-alpine
