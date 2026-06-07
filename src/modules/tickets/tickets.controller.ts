@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Param, ParseIntPipe, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, ParseIntPipe, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/types/auth-user.type';
 import { CreateTicketDto } from './dto/create-ticket.dto';
+import { CancelTicketDto } from './dto/cancel-ticket.dto';
 import { TicketsService } from './tickets.service';
 
 @ApiTags('tickets')
@@ -12,6 +14,13 @@ import { TicketsService } from './tickets.service';
 @Controller('tickets')
 export class TicketsController {
   constructor(private readonly ticketsService: TicketsService) {}
+
+  @ApiOperation({ summary: 'Generar código de anulación (6 dígitos, expira en 2 minutos)' })
+  @Post('cancellation-code')
+  createCancellationCode(@CurrentUser() user: AuthUser) {
+    if (user.role !== Role.ADMIN) throw new ForbiddenException('solo ADMIN puede generar código');
+    return this.ticketsService.createCancellationCode({ createdBy: user.id });
+  }
 
   @ApiOperation({ summary: 'Crear ticket (solo en carreras OPEN)' })
   @Post()
@@ -23,10 +32,32 @@ export class TicketsController {
     });
   }
 
+  @ApiOperation({ summary: 'Anular ticket (solo mientras la carrera esté OPEN)' })
+  @Post(':id/cancel')
+  cancel(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CancelTicketDto,
+  ) {
+    return this.ticketsService.cancelTicket({
+      ticketId: id,
+      cancelledBy: user.id,
+      role: user.role,
+      reason: dto.reason,
+      code: dto.code,
+    });
+  }
+
   @ApiOperation({ summary: 'Listar tickets' })
   @Get()
   findAll() {
     return this.ticketsService.findAll();
+  }
+
+  @ApiOperation({ summary: 'Listar tickets anulados' })
+  @Get('cancelled')
+  findCancelled() {
+    return this.ticketsService.findCancelled();
   }
 
   @ApiOperation({ summary: 'Obtener ticket por id' })

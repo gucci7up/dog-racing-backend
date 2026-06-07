@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { RaceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { OddsEngineService } from '../odds/odds-engine/odds-engine.service';
 import { QueueService } from '../queue/queue.service';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class RaceEngineService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queueService: QueueService,
+    private readonly oddsEngine: OddsEngineService,
   ) {}
 
   @Interval(1000)
@@ -44,9 +46,14 @@ export class RaceEngineService {
         }
 
         if (now.getTime() >= saleEndAt.getTime()) {
-          await this.startRace(currentRace.id);
+          await this.closeRace(currentRace.id);
         }
 
+        return;
+      }
+
+      if (currentRace.status === RaceStatus.CLOSED) {
+        await this.startRace(currentRace.id);
         return;
       }
 
@@ -85,21 +92,46 @@ export class RaceEngineService {
     const saleStartAt = now;
     const saleEndAt = new Date(now.getTime() + this.saleSeconds * 1000);
 
-    const race = await this.prisma.race.create({
-      data: {
-        numero: nextNumero,
-        video: { connect: { id: video.id } },
-        resultado: video.resultado,
-        status: RaceStatus.OPEN,
-        openAt: now,
-        closeAt: saleEndAt,
-        saleStartAt,
-        saleEndAt,
-      },
-      include: { video: true },
+    const race = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.race.create({
+        data: {
+          numero: nextNumero,
+          video: { connect: { id: video.id } },
+          resultado: video.resultado,
+          status: RaceStatus.OPEN,
+          openAt: now,
+          closeAt: saleEndAt,
+          saleStartAt,
+          saleEndAt,
+        },
+        include: { video: true },
+      });
+
+      await this.oddsEngine.initializeForRace(created.id, tx);
+
+      return created;
     });
 
     return race;
+  }
+
+  async closeRace(raceId: string) {
+    const now = new Date();
+    return this.prisma.$transaction(async (tx) => {
+      const race = await tx.race.update({
+        where: { id: raceId },
+        data: {
+          status: RaceStatus.CLOSED,
+          closeAt: now,
+          saleEndAt: now,
+        },
+        include: { video: true },
+      });
+
+      await this.oddsEngine.finalizeRace(raceId, tx);
+
+      return race;
+    });
   }
 
   async startRace(raceId: string) {
@@ -167,7 +199,7 @@ export class RaceEngineService {
 
   private async getCurrentRace() {
     return this.prisma.race.findFirst({
-      where: { status: { in: [RaceStatus.OPEN, RaceStatus.RUNNING] } },
+      where: { status: { in: [RaceStatus.OPEN, RaceStatus.CLOSED, RaceStatus.RUNNING] } },
       orderBy: { createdAt: 'desc' },
       include: { video: true },
     });

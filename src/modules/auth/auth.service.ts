@@ -33,7 +33,7 @@ export class AuthService {
       username: dto.username,
       email: dto.email,
       password: passwordHash,
-      role: Role.PLAYER,
+      role: Role.CASHIER,
     });
 
     const accessToken = await this.signAccessToken(user);

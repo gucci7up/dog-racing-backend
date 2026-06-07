@@ -1,10 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, Race } from '@prisma/client';
+import { Prisma, Race, RaceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { OddsEngineService } from '../odds/odds-engine/odds-engine.service';
 
 @Injectable()
 export class RacesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly oddsEngine: OddsEngineService,
+  ) {}
 
   async create(params: {
     numero: number;
@@ -20,18 +24,27 @@ export class RacesService {
     if (!video) throw new BadRequestException('videoId inválido');
 
     try {
-      return await this.prisma.race.create({
-        data: {
-          numero: params.numero,
-          resultado: params.resultado,
-          status: params.status,
-          openAt: params.openAt ?? undefined,
-          closeAt: params.closeAt ?? undefined,
-          runAt: params.runAt ?? undefined,
-          finishedAt: params.finishedAt ?? undefined,
-          video: { connect: { id: params.videoId } },
-        },
-        include: { video: true },
+      return await this.prisma.$transaction(async (tx) => {
+        const race = await tx.race.create({
+          data: {
+            numero: params.numero,
+            resultado: params.resultado,
+            status: params.status,
+            openAt: params.openAt ?? undefined,
+            closeAt: params.closeAt ?? undefined,
+            runAt: params.runAt ?? undefined,
+            finishedAt: params.finishedAt ?? undefined,
+            video: { connect: { id: params.videoId } },
+          },
+          include: { video: true },
+        });
+
+        await this.oddsEngine.initializeForRace(race.id, tx);
+        if (race.status === RaceStatus.CLOSED) {
+          await this.oddsEngine.finalizeRace(race.id, tx);
+        }
+
+        return race;
       });
     } catch (err) {
       const prismaError = err as { code?: string };
@@ -74,7 +87,7 @@ export class RacesService {
       finishedAt?: Date | null;
     },
   ) {
-    await this.findOne(id);
+    const currentRace = await this.findOne(id);
 
     if (data.videoId) {
       const video = await this.prisma.video.findUnique({ where: { id: data.videoId } });
@@ -82,19 +95,30 @@ export class RacesService {
     }
 
     try {
-      return await this.prisma.race.update({
-        where: { id },
-        data: {
-          numero: data.numero,
-          resultado: data.resultado,
-          status: data.status,
-          openAt: data.openAt ?? undefined,
-          closeAt: data.closeAt ?? undefined,
-          runAt: data.runAt ?? undefined,
-          finishedAt: data.finishedAt ?? undefined,
-          ...(data.videoId ? { video: { connect: { id: data.videoId } } } : {}),
-        },
-        include: { video: true },
+      return await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.race.update({
+          where: { id },
+          data: {
+            numero: data.numero,
+            resultado: data.resultado,
+            status: data.status,
+            openAt: data.openAt ?? undefined,
+            closeAt: data.closeAt ?? undefined,
+            runAt: data.runAt ?? undefined,
+            finishedAt: data.finishedAt ?? undefined,
+            ...(data.videoId ? { video: { connect: { id: data.videoId } } } : {}),
+          },
+          include: { video: true },
+        });
+
+        const nextStatus = updated.status;
+        const becameClosed = currentRace.status !== RaceStatus.CLOSED && nextStatus === RaceStatus.CLOSED;
+        if (becameClosed) {
+          await this.oddsEngine.initializeForRace(updated.id, tx);
+          await this.oddsEngine.finalizeRace(updated.id, tx);
+        }
+
+        return updated;
       });
     } catch (err) {
       const prismaError = err as { code?: string };

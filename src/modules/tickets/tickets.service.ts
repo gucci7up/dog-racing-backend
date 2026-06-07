@@ -1,10 +1,119 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { BetType, Prisma, Ticket, TicketStatus, RaceStatus } from '@prisma/client';
+import { randomInt, randomUUID } from 'crypto';
+import { BetType, Prisma, RaceStatus, Role, Ticket, TicketStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { OddsEngineService } from '../odds/odds-engine/odds-engine.service';
 
 @Injectable()
 export class TicketsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly oddsEngine: OddsEngineService,
+  ) {}
+
+  async createCancellationCode(params: { createdBy: string }) {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 2 * 60 * 1000);
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+      try {
+        const row = await this.prisma.ticketCancellationCode.create({
+          data: {
+            code,
+            expiresAt,
+            used: false,
+            createdBy: params.createdBy,
+          },
+          select: { id: true, code: true, expiresAt: true, used: true, createdAt: true },
+        });
+        return row;
+      } catch (err) {
+        const prismaError = err as { code?: string };
+        if (prismaError.code === 'P2002') continue;
+        throw err;
+      }
+    }
+
+    throw new BadRequestException('no se pudo generar código');
+  }
+
+  async cancelTicket(params: {
+    ticketId: string;
+    cancelledBy: string;
+    role: Role;
+    reason: string;
+    code?: string;
+  }) {
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const ticket = await tx.ticket.findUnique({
+        where: { id: params.ticketId },
+        include: {
+          details: true,
+          user: { select: { id: true, username: true, email: true, role: true } },
+          race: true,
+        },
+      });
+
+      if (!ticket) throw new NotFoundException('ticket no encontrado');
+      if (ticket.race.status !== RaceStatus.OPEN) {
+        throw new BadRequestException('solo se puede anular en carreras OPEN');
+      }
+      if (ticket.status === TicketStatus.CANCELLED) {
+        throw new BadRequestException('ticket ya está anulado');
+      }
+      if (ticket.status !== TicketStatus.PENDING) {
+        throw new BadRequestException('solo se puede anular tickets PENDING');
+      }
+
+      if (params.role !== Role.ADMIN) {
+        if (!params.code) throw new BadRequestException('code requerido');
+        const updated = await tx.ticketCancellationCode.updateMany({
+          where: {
+            code: params.code,
+            used: false,
+            expiresAt: { gt: now },
+          },
+          data: {
+            used: true,
+            usedAt: now,
+          },
+        });
+        if (updated.count === 0) throw new BadRequestException('code inválido o expirado');
+      }
+
+      const cancelled = await tx.ticket.update({
+        where: { id: params.ticketId },
+        data: {
+          status: TicketStatus.CANCELLED,
+          cancelledAt: now,
+          cancelledBy: params.cancelledBy,
+          cancelReason: params.reason,
+        },
+        include: {
+          details: true,
+          user: { select: { id: true, username: true, email: true, role: true } },
+          race: true,
+        },
+      });
+
+      return cancelled;
+    });
+  }
+
+  async findCancelled() {
+    return this.prisma.ticket.findMany({
+      where: { status: TicketStatus.CANCELLED },
+      orderBy: { cancelledAt: 'desc' },
+      include: {
+        details: true,
+        user: { select: { id: true, username: true, email: true, role: true } },
+        race: true,
+      },
+    });
+  }
 
   async create(params: {
     raceId: string;
@@ -65,6 +174,7 @@ export class TicketsService {
           const ticket = await tx.ticket.create({
             data: {
               ticketNumber: nextNumber,
+              publicToken: randomUUID(),
               totalAmount,
               status: TicketStatus.PENDING,
               user: { connect: { id: params.userId } },
@@ -85,6 +195,18 @@ export class TicketsService {
               race: true,
             },
           });
+
+          await this.oddsEngine.applyTicketDetails(
+            {
+              raceId: params.raceId,
+              details: computedDetails.map((d) => ({
+                betType: d.betType,
+                selection: d.selection,
+                amount: d.amount,
+              })),
+            },
+            tx,
+          );
 
           return ticket;
         } catch (err) {

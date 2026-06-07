@@ -14,6 +14,9 @@ import { RacesModule } from './modules/races/races.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { RaceEngineModule } from './modules/race-engine/race-engine.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
+import { OddsModule } from './modules/odds/odds.module';
+import { AgenciesModule } from './modules/agencies/agencies.module';
+import { PublicModule } from './modules/public/public.module';
 
 @Module({
   imports: [
@@ -32,6 +35,9 @@ import { TicketsModule } from './modules/tickets/tickets.module';
     QueueModule,
     RaceEngineModule,
     TicketsModule,
+    OddsModule,
+    AgenciesModule,
+    PublicModule,
   ],
   controllers: [AppController],
   providers: [AppService],

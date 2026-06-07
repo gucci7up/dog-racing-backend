@@ -10,7 +10,6 @@ datasource db {
 enum Role {
   ADMIN
   CASHIER
-  PLAYER
 }
 
 enum RaceStatus {
@@ -25,6 +24,7 @@ enum TicketStatus {
   WON
   LOST
   PAID
+  CANCELLED
 }
 
 enum BetType {
@@ -38,11 +38,27 @@ model User {
   username  String   @unique
   email     String   @unique
   password  String
-  role      Role     @default(PLAYER)
+  role      Role     @default(CASHIER)
+  agencyId  String?  @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  agency  Agency? @relation(fields: [agencyId], references: [id], onDelete: SetNull)
   tickets Ticket[]
+  cancellationCodes TicketCancellationCode[]
+
+  @@index([agencyId])
+}
+
+model Agency {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  code      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
 }
 
 model Video {
@@ -78,6 +94,7 @@ model Race {
   video Video @relation(fields: [videoId], references: [id])
 
   tickets Ticket[]
+  odds    RaceOdds[]
 }
 
 model VideoQueue {
@@ -99,8 +116,12 @@ model Ticket {
   ticketNumber Int          @unique
   raceId       String       @db.Uuid
   userId       String       @db.Uuid
+  publicToken  String       @unique
   totalAmount  Decimal      @db.Decimal(12, 2)
   status       TicketStatus @default(PENDING)
+  cancelledAt  DateTime?
+  cancelledBy  String?      @db.Uuid
+  cancelReason String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -111,6 +132,22 @@ model Ticket {
   @@index([raceId])
   @@index([userId])
   @@index([raceId, userId])
+}
+
+model TicketCancellationCode {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  usedAt    DateTime?
+  createdBy String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  creator User @relation(fields: [createdBy], references: [id])
+
+  @@index([createdBy])
+  @@index([expiresAt])
+  @@index([used])
 }
 
 model TicketDetail {
@@ -126,4 +163,22 @@ model TicketDetail {
   ticket Ticket @relation(fields: [ticketId], references: [id])
 
   @@index([ticketId])
+}
+
+model RaceOdds {
+  id          String   @id @default(uuid()) @db.Uuid
+  raceId      String   @db.Uuid
+  betType     BetType
+  selection   String
+  totalAmount Decimal  @default(0) @db.Decimal(12, 2)
+  currentOdds Decimal  @default(1) @db.Decimal(12, 4)
+  finalOdds   Decimal? @db.Decimal(12, 4)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  race Race @relation(fields: [raceId], references: [id])
+
+  @@unique([raceId, betType, selection])
+  @@index([raceId])
+  @@index([raceId, betType])
 }
