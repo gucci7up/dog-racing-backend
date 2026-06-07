@@ -20,6 +20,19 @@ enum RaceStatus {
   FINISHED
 }
 
+enum BetType {
+  WINNER
+  EXACTA
+  TRIPLE
+}
+
+enum BetStatus {
+  PENDING
+  WON
+  LOST
+  PAID
+}
+
 model User {
   id        String   @id @default(uuid()) @db.Uuid
   username  String   @unique
@@ -28,6 +41,8 @@ model User {
   role      Role     @default(PLAYER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  bets Bet[]
 }
 
 model Video {
@@ -61,6 +76,8 @@ model Race {
   updatedAt DateTime   @updatedAt
 
   video Video @relation(fields: [videoId], references: [id])
+
+  bets Bet[]
 }
 
 model VideoQueue {
@@ -75,4 +92,22 @@ model VideoQueue {
   @@index([used, position])
   @@index([videoId])
   @@unique([position])
+}
+
+model Bet {
+  id          String    @id @default(uuid()) @db.Uuid
+  raceId      String    @db.Uuid
+  userId      String    @db.Uuid
+  tipo        BetType
+  combinacion String
+  monto       Decimal   @db.Decimal(12, 2)
+  estado      BetStatus @default(PENDING)
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  race Race @relation(fields: [raceId], references: [id])
+
+  @@index([raceId])
+  @@index([userId])
+  @@index([raceId, userId])
 }
