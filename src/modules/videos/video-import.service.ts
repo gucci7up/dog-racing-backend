@@ -34,15 +34,32 @@ export class VideoImportService {
     if (lines.length === 0) return summary;
 
     const delimiter = this.detectDelimiter(lines[0]!);
-    const header = this.parseCsvLine(lines[0]!, delimiter).map((h) => h.toLowerCase());
+    const header = this.parseCsvLine(lines[0]!, delimiter).map((h) => h.replace(/^\uFEFF/, '').toLowerCase());
 
     const headerLooksLikeHeader = header.includes('video') || header.includes('nombre') || header.includes('resultado');
     const startIndex = headerLooksLikeHeader ? 1 : 0;
 
+    const findIndex = (candidates: string[]) => {
+      for (const c of candidates) {
+        const exact = header.indexOf(c);
+        if (exact >= 0) return exact;
+      }
+      for (const c of candidates) {
+        const partial = header.findIndex((h) => h.includes(c));
+        if (partial >= 0) return partial;
+      }
+      return -1;
+    };
+
     const getIndex = (name: string) => header.indexOf(name);
-    const videoIdx = headerLooksLikeHeader ? (getIndex('video') >= 0 ? getIndex('video') : getIndex('nombre')) : 0;
-    const resultadoIdx = headerLooksLikeHeader ? getIndex('resultado') : 1;
+
+    const videoIdx = headerLooksLikeHeader ? findIndex(['video', 'nombre']) : 0;
+    const resultadoIdx = headerLooksLikeHeader ? findIndex(['resultado', 'result']) : 1;
     const activoIdx = headerLooksLikeHeader ? getIndex('activo') : -1;
+
+    if (headerLooksLikeHeader && (videoIdx < 0 || resultadoIdx < 0)) {
+      throw new BadRequestException(`CSV inválido: headers=${header.join(',')}`);
+    }
 
     for (let i = startIndex; i < lines.length; i++) {
       const rowNumber = i + 1;
