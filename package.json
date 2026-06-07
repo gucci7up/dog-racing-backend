@@ -17,7 +17,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "videos:import": "node dist/src/cli/videos-import.js",
+    "videos:import": "node -e \"const fs=require('fs');const {spawnSync}=require('child_process');const paths=['dist/src/cli/videos-import.js','dist/cli/videos-import.js'];const p=paths.find(fs.existsSync);if(!p){console.error('videos:import: build not found. Run the build in your CI/image.');process.exit(1);}const r=spawnSync(process.execPath,[p],{stdio:'inherit'});process.exit(r.status??1);\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
