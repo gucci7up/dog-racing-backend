@@ -201,6 +201,30 @@ export class TicketsService {
     });
   }
 
+  async getTicketResult(ticketId: string) {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: {
+        details: true,
+        race: true,
+        user: { select: { id: true, username: true, email: true, role: true } },
+      },
+    });
+    if (!ticket) throw new NotFoundException('ticket no encontrado');
+
+    const winners = this.getWinningSelections(ticket.race.resultado);
+    const { wonAmount, lostAmount, winningDetails } = this.calculateTicketOutcome(ticket.details, winners);
+
+    return {
+      ticket,
+      estado: ticket.status,
+      premio: wonAmount,
+      wonAmount,
+      lostAmount,
+      detalleGanador: winningDetails[0] ?? null,
+    };
+  }
+
   async create(params: {
     raceId: string;
     userId: string;
@@ -352,5 +376,52 @@ export class TicketsService {
     });
     if (!ticket) throw new NotFoundException('ticket no encontrado');
     return ticket;
+  }
+
+  private getWinningSelections(resultado: string) {
+    const parts = resultado
+      .split('-')
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    if (parts.length < 3) throw new BadRequestException('resultado inválido');
+
+    const winner = parts[0]!;
+    const exacta = `${parts[0]}-${parts[1]}`;
+    const trifecta = `${parts[0]}-${parts[1]}-${parts[2]}`;
+
+    return { winner, exacta, trifecta };
+  }
+
+  private calculateTicketOutcome(
+    details: Array<{ betType: BetType; selection: string; amount: Prisma.Decimal; odds: Prisma.Decimal }>,
+    winners: { winner: string; exacta: string; trifecta: string },
+  ) {
+    let wonAmount = new Prisma.Decimal(0);
+    let lostAmount = new Prisma.Decimal(0);
+    const winningDetails: Array<{
+      betType: BetType;
+      selection: string;
+      amount: Prisma.Decimal;
+      odds: Prisma.Decimal;
+      prize: Prisma.Decimal;
+    }> = [];
+
+    for (const d of details) {
+      const isWinner =
+        (d.betType === BetType.WINNER && d.selection === winners.winner) ||
+        (d.betType === BetType.EXACTA && d.selection === winners.exacta) ||
+        (d.betType === BetType.TRIFECTA && d.selection === winners.trifecta);
+
+      if (isWinner) {
+        const prize = d.amount.mul(d.odds);
+        wonAmount = wonAmount.add(prize);
+        winningDetails.push({ betType: d.betType, selection: d.selection, amount: d.amount, odds: d.odds, prize });
+      } else {
+        lostAmount = lostAmount.add(d.amount);
+      }
+    }
+
+    return { wonAmount, lostAmount, winningDetails };
   }
 }

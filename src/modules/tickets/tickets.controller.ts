@@ -90,6 +90,12 @@ export class TicketsController {
     return this.ticketsService.findById(id);
   }
 
+  @ApiOperation({ summary: 'Resultado del ticket (premio + detalle ganador)' })
+  @Get(':id/result')
+  result(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    return this.ticketsService.getTicketResult(id);
+  }
+
   @ApiOperation({ summary: 'Listar tickets por carrera' })
   @Get('race/:raceId')
   findByRaceId(@Param('raceId', new ParseUUIDPipe({ version: '4' })) raceId: string) {

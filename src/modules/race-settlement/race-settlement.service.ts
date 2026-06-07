@@ -7,6 +7,7 @@ export class RaceSettlementService {
   constructor(private readonly prisma: PrismaService) {}
 
   async settleRace(params: { raceId: string }) {
+    const settledAt = new Date();
     return this.prisma.$transaction(async (tx) => {
       const race = await tx.race.findUnique({
         where: { id: params.raceId },
@@ -18,23 +19,6 @@ export class RaceSettlementService {
       }
 
       const winners = this.getWinningSelections(race.resultado);
-
-      const oddsRows = await tx.raceOdds.findMany({
-        where: {
-          raceId: race.id,
-          OR: [
-            { betType: BetType.WINNER, selection: winners.winner },
-            { betType: BetType.EXACTA, selection: winners.exacta },
-            { betType: BetType.TRIFECTA, selection: winners.trifecta },
-          ],
-        },
-        select: { betType: true, selection: true, finalOdds: true, currentOdds: true },
-      });
-
-      const oddsByKey = new Map<string, Prisma.Decimal>();
-      for (const row of oddsRows) {
-        oddsByKey.set(`${row.betType}:${row.selection}`, row.finalOdds ?? row.currentOdds);
-      }
 
       const tickets = await tx.ticket.findMany({
         where: { raceId: race.id },
@@ -48,33 +32,31 @@ export class RaceSettlementService {
       let montoPremios = new Prisma.Decimal(0);
 
       for (const ticket of tickets) {
-        if (ticket.status === TicketStatus.CANCELLED) continue;
-
-        const ticketPrize = this.calculateTicketPrize(ticket.details, winners, oddsByKey);
-        const hasWin = ticketPrize.gt(0);
-
-        if (ticket.status === TicketStatus.PAID) {
-          await tx.ticket.update({
-            where: { id: ticket.id },
-            data: { prizeAmount: ticketPrize },
-          });
-          ticketsGanadores++;
-          montoPremios = montoPremios.add(ticketPrize);
+        if (
+          ticket.status !== TicketStatus.PENDING &&
+          ticket.status !== TicketStatus.WON &&
+          ticket.status !== TicketStatus.LOST
+        )
           continue;
-        }
 
-        if (hasWin) {
-          await tx.ticket.update({
-            where: { id: ticket.id },
-            data: { status: TicketStatus.WON, prizeAmount: ticketPrize },
-          });
+        const { wonAmount } = this.calculateTicketAmounts(ticket.details, winners);
+        const nextStatus = wonAmount.gt(0) ? TicketStatus.WON : TicketStatus.LOST;
+        const nextPrize = wonAmount;
+
+        await tx.ticket.update({
+          where: { id: ticket.id },
+          data: {
+            status: nextStatus,
+            prizeAmount: nextPrize,
+            winningResult: race.resultado,
+            settledAt,
+          },
+        });
+
+        if (nextStatus === TicketStatus.WON) {
           ticketsGanadores++;
-          montoPremios = montoPremios.add(ticketPrize);
+          montoPremios = montoPremios.add(nextPrize);
         } else {
-          await tx.ticket.update({
-            where: { id: ticket.id },
-            data: { status: TicketStatus.LOST, prizeAmount: new Prisma.Decimal(0) },
-          });
           ticketsPerdedores++;
         }
       }
@@ -87,6 +69,7 @@ export class RaceSettlementService {
         ticketsPerdedores,
         montoPremios,
         cantidadGanadores: ticketsGanadores,
+        settledAt,
       };
     });
   }
@@ -99,10 +82,10 @@ export class RaceSettlementService {
     if (!race) throw new NotFoundException('race no encontrada');
 
     const [winnersCount, losersCount, sum] = await Promise.all([
-      this.prisma.ticket.count({ where: { raceId: race.id, status: { in: [TicketStatus.WON, TicketStatus.PAID] } } }),
+      this.prisma.ticket.count({ where: { raceId: race.id, status: TicketStatus.WON } }),
       this.prisma.ticket.count({ where: { raceId: race.id, status: TicketStatus.LOST } }),
       this.prisma.ticket.aggregate({
-        where: { raceId: race.id, status: { in: [TicketStatus.WON, TicketStatus.PAID] } },
+        where: { raceId: race.id, status: TicketStatus.WON },
         _sum: { prizeAmount: true },
       }),
     ]);
@@ -134,12 +117,12 @@ export class RaceSettlementService {
     return { winner, exacta, trifecta };
   }
 
-  private calculateTicketPrize(
-    details: Array<{ betType: BetType; selection: string; amount: Prisma.Decimal }>,
+  private calculateTicketAmounts(
+    details: Array<{ betType: BetType; selection: string; amount: Prisma.Decimal; odds: Prisma.Decimal }>,
     winners: { winner: string; exacta: string; trifecta: string },
-    oddsByKey: Map<string, Prisma.Decimal>,
   ) {
-    let total = new Prisma.Decimal(0);
+    let wonAmount = new Prisma.Decimal(0);
+    let lostAmount = new Prisma.Decimal(0);
 
     for (const d of details) {
       const isWinner =
@@ -147,17 +130,13 @@ export class RaceSettlementService {
         (d.betType === BetType.EXACTA && d.selection === winners.exacta) ||
         (d.betType === BetType.TRIFECTA && d.selection === winners.trifecta);
 
-      if (!isWinner) continue;
-
-      const key = `${d.betType}:${d.selection}`;
-      const odds = oddsByKey.get(key);
-      if (!odds) {
-        throw new BadRequestException('finalOdds no disponibles para liquidación');
+      if (isWinner) {
+        wonAmount = wonAmount.add(d.amount.mul(d.odds));
+      } else {
+        lostAmount = lostAmount.add(d.amount);
       }
-
-      total = total.add(d.amount.mul(odds));
     }
 
-    return total;
+    return { wonAmount, lostAmount };
   }
 }
