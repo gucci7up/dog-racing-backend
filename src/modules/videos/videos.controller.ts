@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   ParseArrayPipe,
@@ -13,9 +14,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthUser } from '../../common/types/auth-user.type';
 import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
+import { VideoImportService } from './video-import.service';
 import { VideosService } from './videos.service';
 
 @ApiTags('videos')
@@ -23,7 +28,10 @@ import { VideosService } from './videos.service';
 @UseGuards(JwtAuthGuard)
 @Controller('videos')
 export class VideosController {
-  constructor(private readonly videosService: VideosService) {}
+  constructor(
+    private readonly videosService: VideosService,
+    private readonly videoImportService: VideoImportService,
+  ) {}
 
   @Post()
   create(@Body() dto: CreateVideoDto) {
@@ -63,6 +71,19 @@ export class VideosController {
     if (activo === 'true') return this.videosService.findAll({ activo: true });
     if (activo === 'false') return this.videosService.findAll({ activo: false });
     throw new BadRequestException('activo debe ser true o false');
+  }
+
+  @ApiOperation({ summary: 'Estadísticas de videos' })
+  @Get('stats')
+  stats() {
+    return this.videosService.stats();
+  }
+
+  @ApiOperation({ summary: 'Importar videos desde archivos locales (CSV + .webm)' })
+  @Post('import')
+  import(@CurrentUser() user: AuthUser) {
+    if (user.role !== Role.ADMIN) throw new ForbiddenException('solo ADMIN puede importar');
+    return this.videoImportService.importFromLocal();
   }
 
   @Get(':id')

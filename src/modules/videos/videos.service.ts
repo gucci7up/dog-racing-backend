@@ -48,6 +48,16 @@ export class VideosService {
     });
   }
 
+  async stats() {
+    const [total, active, inactive] = await Promise.all([
+      this.prisma.video.count(),
+      this.prisma.video.count({ where: { activo: true } }),
+      this.prisma.video.count({ where: { activo: false } }),
+    ]);
+
+    return { total, active, inactive };
+  }
+
   async findOne(id: string): Promise<Video> {
     const video = await this.prisma.video.findUnique({
       where: { id },

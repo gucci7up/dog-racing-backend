@@ -17,6 +17,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
+    "videos:import": "npm run build && node dist/src/cli/videos-import.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",

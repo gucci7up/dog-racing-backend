@@ -118,7 +118,10 @@ model Ticket {
   userId       String       @db.Uuid
   publicToken  String       @unique
   totalAmount  Decimal      @db.Decimal(12, 2)
+  prizeAmount  Decimal      @default(0) @db.Decimal(12, 2)
   status       TicketStatus @default(PENDING)
+  paidAt       DateTime?
+  paidBy       String?      @db.Uuid
   cancelledAt  DateTime?
   cancelledBy  String?      @db.Uuid
   cancelReason String?

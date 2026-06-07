@@ -60,6 +60,30 @@ export class TicketsController {
     return this.ticketsService.findCancelled();
   }
 
+  @ApiOperation({ summary: 'Listar tickets ganadores (WON)' })
+  @Get('winners')
+  findWinners() {
+    return this.ticketsService.findWinners();
+  }
+
+  @ApiOperation({ summary: 'Listar tickets pendientes de pago (WON)' })
+  @Get('pending-payment')
+  findPendingPayment() {
+    return this.ticketsService.findPendingPayment();
+  }
+
+  @ApiOperation({ summary: 'Listar tickets pagados (PAID)' })
+  @Get('paid')
+  findPaid() {
+    return this.ticketsService.findPaid();
+  }
+
+  @ApiOperation({ summary: 'Pagar ticket (solo WON, misma Agency)' })
+  @Post(':id/pay')
+  pay(@CurrentUser() user: AuthUser, @Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    return this.ticketsService.payTicket({ ticketId: id, paidBy: user.id });
+  }
+
   @ApiOperation({ summary: 'Obtener ticket por id' })
   @Get(':id')
   findById(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {

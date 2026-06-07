@@ -4,6 +4,8 @@ export type AppConfig = {
   databaseUrl: string;
   redisUrl: string;
   publicBaseUrl?: string;
+  videosPath?: string;
+  resultsCsvPath?: string;
   jwt: {
     secret: string;
     expiresIn: string;
@@ -17,6 +19,8 @@ export default (): AppConfig => ({
   databaseUrl: process.env.DATABASE_URL ?? '',
   redisUrl: process.env.REDIS_URL ?? '',
   publicBaseUrl: process.env.PUBLIC_BASE_URL,
+  videosPath: process.env.VIDEOS_PATH,
+  resultsCsvPath: process.env.RESULTS_CSV_PATH,
   jwt: {
     secret: process.env.JWT_SECRET ?? '',
     expiresIn: process.env.JWT_EXPIRES_IN ?? '1d',

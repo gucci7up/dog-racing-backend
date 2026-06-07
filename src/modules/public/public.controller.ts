@@ -43,9 +43,9 @@ export class PublicController {
       createdAt: ticket.createdAt,
       details: ticket.details,
       resultado: ticket.race.resultado,
-      prizeAmount: null,
+      prizeAmount: ticket.prizeAmount,
       paid,
-      paidAt: null,
+      paidAt: ticket.paidAt,
     };
   }
 

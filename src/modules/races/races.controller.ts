@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   ParseUUIDPipe,
@@ -12,18 +13,24 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { RaceStatus } from '@prisma/client';
+import { RaceStatus, Role } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthUser } from '../../common/types/auth-user.type';
 import { CreateRaceDto } from './dto/create-race.dto';
 import { UpdateRaceDto } from './dto/update-race.dto';
 import { RacesService } from './races.service';
+import { RaceSettlementService } from '../race-settlement/race-settlement.service';
 
 @ApiTags('races')
 @ApiBearerAuth('bearer')
 @UseGuards(JwtAuthGuard)
 @Controller('races')
 export class RacesController {
-  constructor(private readonly racesService: RacesService) {}
+  constructor(
+    private readonly racesService: RacesService,
+    private readonly raceSettlement: RaceSettlementService,
+  ) {}
 
   @Post()
   create(@Body() dto: CreateRaceDto) {
@@ -56,6 +63,17 @@ export class RacesController {
       status: parsedStatus ?? undefined,
       videoId,
     });
+  }
+
+  @Post(':id/settle')
+  settle(@CurrentUser() user: AuthUser, @Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    if (user.role !== Role.ADMIN) throw new ForbiddenException('solo ADMIN puede liquidar');
+    return this.raceSettlement.settleRace({ raceId: id });
+  }
+
+  @Get(':id/results')
+  results(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    return this.raceSettlement.getResults({ raceId: id });
   }
 
   @Get(':id')

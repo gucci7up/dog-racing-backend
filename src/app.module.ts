@@ -17,6 +17,7 @@ import { TicketsModule } from './modules/tickets/tickets.module';
 import { OddsModule } from './modules/odds/odds.module';
 import { AgenciesModule } from './modules/agencies/agencies.module';
 import { PublicModule } from './modules/public/public.module';
+import { RaceSettlementModule } from './modules/race-settlement/race-settlement.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { PublicModule } from './modules/public/public.module';
     OddsModule,
     AgenciesModule,
     PublicModule,
+    RaceSettlementModule,
   ],
   controllers: [AppController],
   providers: [AppService],

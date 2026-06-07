@@ -11,6 +11,92 @@ export class TicketsService {
     private readonly oddsEngine: OddsEngineService,
   ) {}
 
+  async payTicket(params: { ticketId: string; paidBy: string }) {
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const payer = await tx.user.findUnique({
+        where: { id: params.paidBy },
+        select: { id: true, role: true, agencyId: true },
+      });
+      if (!payer) throw new NotFoundException('usuario no encontrado');
+      if (!payer.agencyId) throw new BadRequestException('usuario sin agency');
+
+      const ticket = await tx.ticket.findUnique({
+        where: { id: params.ticketId },
+        include: {
+          details: true,
+          race: true,
+          user: { select: { id: true, username: true, email: true, role: true, agencyId: true } },
+        },
+      });
+      if (!ticket) throw new NotFoundException('ticket no encontrado');
+
+      if (ticket.status !== TicketStatus.WON) {
+        throw new BadRequestException('solo tickets WON pueden pagarse');
+      }
+      if (ticket.paidAt) {
+        throw new BadRequestException('ticket ya fue pagado');
+      }
+      if (!ticket.user.agencyId) {
+        throw new BadRequestException('ticket sin agency asociada');
+      }
+      if (ticket.user.agencyId !== payer.agencyId) {
+        throw new BadRequestException('solo la misma agency puede pagarlo');
+      }
+
+      return tx.ticket.update({
+        where: { id: ticket.id },
+        data: {
+          status: TicketStatus.PAID,
+          paidAt: now,
+          paidBy: payer.id,
+        },
+        include: {
+          details: true,
+          race: true,
+          user: { select: { id: true, username: true, email: true, role: true, agencyId: true } },
+        },
+      });
+    });
+  }
+
+  async findWinners() {
+    return this.prisma.ticket.findMany({
+      where: { status: TicketStatus.WON },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        details: true,
+        user: { select: { id: true, username: true, email: true, role: true, agencyId: true } },
+        race: true,
+      },
+    });
+  }
+
+  async findPendingPayment() {
+    return this.prisma.ticket.findMany({
+      where: { status: TicketStatus.WON },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        details: true,
+        user: { select: { id: true, username: true, email: true, role: true, agencyId: true } },
+        race: true,
+      },
+    });
+  }
+
+  async findPaid() {
+    return this.prisma.ticket.findMany({
+      where: { status: TicketStatus.PAID },
+      orderBy: { paidAt: 'desc' },
+      include: {
+        details: true,
+        user: { select: { id: true, username: true, email: true, role: true, agencyId: true } },
+        race: true,
+      },
+    });
+  }
+
   async createCancellationCode(params: { createdBy: string }) {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 2 * 60 * 1000);

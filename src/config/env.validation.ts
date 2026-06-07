@@ -9,6 +9,9 @@ export const envValidationSchema = Joi.object({
 
   PUBLIC_BASE_URL: Joi.string().uri().optional(),
 
+  VIDEOS_PATH: Joi.string().min(1).optional(),
+  RESULTS_CSV_PATH: Joi.string().min(1).optional(),
+
   JWT_SECRET: Joi.string().min(16).required(),
   JWT_EXPIRES_IN: Joi.string().default('1d'),
 

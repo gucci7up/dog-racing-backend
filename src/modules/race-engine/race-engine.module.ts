@@ -3,9 +3,10 @@ import { RaceEngineService } from './race-engine.service';
 import { RaceEngineController } from './race-engine.controller';
 import { QueueModule } from '../queue/queue.module';
 import { OddsModule } from '../odds/odds.module';
+import { RaceSettlementModule } from '../race-settlement/race-settlement.module';
 
 @Module({
-  imports: [QueueModule, OddsModule],
+  imports: [QueueModule, OddsModule, RaceSettlementModule],
   providers: [RaceEngineService],
   controllers: [RaceEngineController],
 })

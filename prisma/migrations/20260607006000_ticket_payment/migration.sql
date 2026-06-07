@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Ticket" ADD COLUMN "paidAt" TIMESTAMP(3);
+ALTER TABLE "Ticket" ADD COLUMN "paidBy" UUID;
+ALTER TABLE "Ticket" ADD COLUMN "prizeAmount" DECIMAL(12,2) NOT NULL DEFAULT 0;

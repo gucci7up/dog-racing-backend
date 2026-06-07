@@ -4,6 +4,7 @@ import { RaceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OddsEngineService } from '../odds/odds-engine/odds-engine.service';
 import { QueueService } from '../queue/queue.service';
+import { RaceSettlementService } from '../race-settlement/race-settlement.service';
 
 @Injectable()
 export class RaceEngineService {
@@ -15,6 +16,7 @@ export class RaceEngineService {
     private readonly prisma: PrismaService,
     private readonly queueService: QueueService,
     private readonly oddsEngine: OddsEngineService,
+    private readonly raceSettlement: RaceSettlementService,
   ) {}
 
   @Interval(1000)
@@ -206,6 +208,6 @@ export class RaceEngineService {
   }
 
   private async calculatePrizes(_raceId: string) {
-    return;
+    await this.raceSettlement.settleRace({ raceId: _raceId });
   }
 }
