@@ -111,6 +111,13 @@ model VideoQueue {
   @@unique([position])
 }
 
+model QueueState {
+  id              String   @id @default(uuid()) @db.Uuid
+  currentPosition Int      @default(0)
+  cycleNumber     Int      @default(1)
+  updatedAt       DateTime @updatedAt
+}
+
 model Ticket {
   id           String       @id @default(uuid()) @db.Uuid
   ticketNumber Int          @unique
