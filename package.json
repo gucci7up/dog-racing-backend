@@ -39,6 +39,7 @@
     "class-validator": "^0.15.1",
     "ioredis": "^5.11.1",
     "joi": "^18.2.1",
+    "music-metadata": "^11.12.3",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "prisma": "^6.19.3",

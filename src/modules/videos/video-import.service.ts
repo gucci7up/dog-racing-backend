@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { access, readFile } from 'fs/promises';
+import { parseFile } from 'music-metadata';
 import { resolve } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -88,6 +89,15 @@ export class VideoImportService {
         continue;
       }
 
+      let durationSeconds = 42;
+      try {
+        const metadata = await parseFile(filePath, { duration: true });
+        const seconds = metadata.format.duration ? Math.round(metadata.format.duration) : 0;
+        if (seconds > 0) durationSeconds = seconds;
+      } catch {
+        durationSeconds = 42;
+      }
+
       const archivo = `${videosPath.replace(/[\\/]+$/, '')}/${filename}`;
       const activo =
         activoRaw === ''
@@ -106,7 +116,7 @@ export class VideoImportService {
       if (existing) {
         await this.prisma.video.update({
           where: { nombre },
-          data: { archivo, resultado, activo },
+          data: { archivo, resultado, activo, durationSeconds },
         });
         summary.videosActualizados++;
       } else {
@@ -116,6 +126,7 @@ export class VideoImportService {
             archivo,
             resultado,
             activo,
+            durationSeconds,
           } satisfies Prisma.VideoCreateInput,
         });
         summary.videosImportados++;

@@ -67,6 +67,7 @@ model Video {
   resultado String
   archivo   String
   activo    Boolean  @default(true)
+  durationSeconds Int @default(42)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

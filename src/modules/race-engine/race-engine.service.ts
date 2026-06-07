@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { RaceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -7,9 +7,9 @@ import { QueueService } from '../queue/queue.service';
 import { RaceSettlementService } from '../race-settlement/race-settlement.service';
 
 @Injectable()
-export class RaceEngineService {
+export class RaceEngineService implements OnModuleInit {
   private readonly saleSeconds = 5 * 60;
-  private readonly videoSeconds = 60;
+  private readonly closedDelaySeconds = 5;
   private isTickRunning = false;
 
   constructor(
@@ -18,6 +18,17 @@ export class RaceEngineService {
     private readonly oddsEngine: OddsEngineService,
     private readonly raceSettlement: RaceSettlementService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      const currentRace = await this.getCurrentRace();
+      if (!currentRace) {
+        await this.createNextRace();
+      }
+    } catch {
+      return;
+    }
+  }
 
   @Interval(1000)
   async tick() {
@@ -55,7 +66,11 @@ export class RaceEngineService {
       }
 
       if (currentRace.status === RaceStatus.CLOSED) {
-        await this.startRace(currentRace.id);
+        const now = Date.now();
+        const closedAt = currentRace.closeAt?.getTime() ?? currentRace.saleEndAt?.getTime() ?? now;
+        if (now >= closedAt + this.closedDelaySeconds * 1000) {
+          await this.startRace(currentRace.id);
+        }
         return;
       }
 
@@ -72,7 +87,8 @@ export class RaceEngineService {
         }
 
         const elapsed = Math.floor((Date.now() - currentRace.videoStartedAt.getTime()) / 1000);
-        if (elapsed >= this.videoSeconds) {
+        const durationSeconds = currentRace.video?.durationSeconds ?? 42;
+        if (elapsed >= durationSeconds) {
           await this.finishRace(currentRace.id);
         }
       }
@@ -188,7 +204,11 @@ export class RaceEngineService {
 
     const remainingVideoSeconds =
       currentRace.status === RaceStatus.RUNNING && currentRace.videoStartedAt
-        ? Math.max(0, this.videoSeconds - Math.floor((now - currentRace.videoStartedAt.getTime()) / 1000))
+        ? Math.max(
+            0,
+            (currentRace.video?.durationSeconds ?? 42) -
+              Math.floor((now - currentRace.videoStartedAt.getTime()) / 1000),
+          )
         : null;
 
     return {

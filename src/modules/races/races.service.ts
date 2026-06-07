@@ -65,6 +65,24 @@ export class RacesService {
     });
   }
 
+  async current() {
+    return this.prisma.race.findFirst({
+      where: { status: { in: [RaceStatus.OPEN, RaceStatus.CLOSED, RaceStatus.RUNNING] } },
+      orderBy: { createdAt: 'desc' },
+      include: { video: true },
+    });
+  }
+
+  async history(params?: { limit?: number }) {
+    const limit = Math.min(Math.max(params?.limit ?? 50, 1), 200);
+    return this.prisma.race.findMany({
+      where: { status: RaceStatus.FINISHED },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { video: true },
+    });
+  }
+
   async findOne(id: string): Promise<Race> {
     const race = await this.prisma.race.findUnique({
       where: { id },

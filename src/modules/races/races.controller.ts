@@ -12,7 +12,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { RaceStatus, Role } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -21,6 +21,7 @@ import { CreateRaceDto } from './dto/create-race.dto';
 import { UpdateRaceDto } from './dto/update-race.dto';
 import { RacesService } from './races.service';
 import { RaceSettlementService } from '../race-settlement/race-settlement.service';
+import { RaceEngineService } from '../race-engine/race-engine.service';
 
 @ApiTags('races')
 @ApiBearerAuth('bearer')
@@ -30,6 +31,7 @@ export class RacesController {
   constructor(
     private readonly racesService: RacesService,
     private readonly raceSettlement: RaceSettlementService,
+    private readonly raceEngine: RaceEngineService,
   ) {}
 
   @Post()
@@ -63,6 +65,26 @@ export class RacesController {
       status: parsedStatus ?? undefined,
       videoId,
     });
+  }
+
+  @ApiOperation({ summary: 'Carrera actual (OPEN/CLOSED/RUNNING)' })
+  @Get('current')
+  current() {
+    return this.racesService.current();
+  }
+
+  @ApiOperation({ summary: 'Historial de carreras FINISHED' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @Get('history')
+  history(@Query('limit') limit?: string) {
+    const parsed = limit ? Number(limit) : undefined;
+    return this.racesService.history({ limit: Number.isFinite(parsed as number) ? (parsed as number) : undefined });
+  }
+
+  @ApiOperation({ summary: 'Estado del motor + contadores' })
+  @Get('status')
+  status() {
+    return this.raceEngine.status();
   }
 
   @Post(':id/settle')

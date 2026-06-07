@@ -9,5 +9,6 @@ import { RaceSettlementModule } from '../race-settlement/race-settlement.module'
   imports: [QueueModule, OddsModule, RaceSettlementModule],
   providers: [RaceEngineService],
   controllers: [RaceEngineController],
+  exports: [RaceEngineService],
 })
 export class RaceEngineModule {}
