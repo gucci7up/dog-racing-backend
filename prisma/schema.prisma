@@ -40,6 +40,7 @@ model Video {
   updatedAt DateTime @updatedAt
 
   races Race[]
+  queue VideoQueue[]
 }
 
 model Race {
@@ -56,4 +57,18 @@ model Race {
   updatedAt DateTime   @updatedAt
 
   video Video @relation(fields: [videoId], references: [id])
+}
+
+model VideoQueue {
+  id        String   @id @default(uuid()) @db.Uuid
+  videoId   String   @db.Uuid
+  position  Int
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  video Video @relation(fields: [videoId], references: [id])
+
+  @@index([used, position])
+  @@index([videoId])
+  @@unique([position])
 }

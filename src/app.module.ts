@@ -10,6 +10,7 @@ import { PrismaModule } from './modules/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { VideosModule } from './modules/videos/videos.module';
 import { RacesModule } from './modules/races/races.module';
+import { QueueModule } from './modules/queue/queue.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { RacesModule } from './modules/races/races.module';
     UsersModule,
     VideosModule,
     RacesModule,
+    QueueModule,
   ],
   controllers: [AppController],
   providers: [AppService],
