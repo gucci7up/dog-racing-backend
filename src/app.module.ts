@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import configuration from './config/configuration';
@@ -11,6 +12,7 @@ import { RedisModule } from './common/redis/redis.module';
 import { VideosModule } from './modules/videos/videos.module';
 import { RacesModule } from './modules/races/races.module';
 import { QueueModule } from './modules/queue/queue.module';
+import { RaceEngineModule } from './modules/race-engine/race-engine.module';
 
 @Module({
   imports: [
@@ -19,6 +21,7 @@ import { QueueModule } from './modules/queue/queue.module';
       load: [configuration],
       validationSchema: envValidationSchema,
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
     AuthModule,
@@ -26,6 +29,7 @@ import { QueueModule } from './modules/queue/queue.module';
     VideosModule,
     RacesModule,
     QueueModule,
+    RaceEngineModule,
   ],
   controllers: [AppController],
   providers: [AppService],
