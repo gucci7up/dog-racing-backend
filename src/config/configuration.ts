@@ -8,7 +8,6 @@ export type AppConfig = {
     expiresIn: string;
   };
   bcryptSaltRounds: number;
-  betMinAmount: number;
 };
 
 export default (): AppConfig => ({
@@ -21,5 +20,4 @@ export default (): AppConfig => ({
     expiresIn: process.env.JWT_EXPIRES_IN ?? '1d',
   },
   bcryptSaltRounds: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
-  betMinAmount: Number(process.env.BET_MIN_AMOUNT ?? 1),
 });

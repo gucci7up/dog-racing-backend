@@ -13,7 +13,7 @@ import { VideosModule } from './modules/videos/videos.module';
 import { RacesModule } from './modules/races/races.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { RaceEngineModule } from './modules/race-engine/race-engine.module';
-import { BetsModule } from './modules/bets/bets.module';
+import { TicketsModule } from './modules/tickets/tickets.module';
 
 @Module({
   imports: [
@@ -31,7 +31,7 @@ import { BetsModule } from './modules/bets/bets.module';
     RacesModule,
     QueueModule,
     RaceEngineModule,
-    BetsModule,
+    TicketsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

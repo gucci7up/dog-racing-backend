@@ -1,23 +1,24 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { BetType } from '@prisma/client';
-import { IsEnum, IsString, IsUUID, Matches, MinLength } from 'class-validator';
+import { IsEnum, IsString, Matches, MinLength } from 'class-validator';
 
-export class CreateBetDto {
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  raceId!: string;
-
+export class CreateTicketDetailDto {
   @ApiProperty({ enum: BetType, example: BetType.WINNER })
   @IsEnum(BetType)
-  tipo!: BetType;
+  betType!: BetType;
 
   @ApiProperty({ example: '1' })
   @IsString()
   @MinLength(1)
-  combinacion!: string;
+  selection!: string;
 
   @ApiProperty({ example: '10.00' })
   @IsString()
   @Matches(/^\d+(\.\d{1,2})?$/)
-  monto!: string;
+  amount!: string;
+
+  @ApiProperty({ example: '2.50' })
+  @IsString()
+  @Matches(/^\d+(\.\d{1,4})?$/)
+  odds!: string;
 }
