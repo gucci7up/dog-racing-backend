@@ -42,6 +42,17 @@ export class UsersService {
     });
   }
 
+  async makeAdmin(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('usuario no encontrado');
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { role: Role.ADMIN },
+      include: { agency: true },
+    });
+  }
+
   async create(data: Prisma.UserCreateInput): Promise<User> {
     try {
       return await this.prisma.user.create({ data });
