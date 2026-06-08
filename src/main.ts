@@ -6,6 +6,13 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableCors({
+    origin: ['https://pos.mbracesrd.lat', 'http://localhost:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type'],
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
