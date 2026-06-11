@@ -25,7 +25,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService<AppConfig>);
   const videosPath = (configService.get<string>('videosPath', { infer: true }) ?? '/opt/mbraces/videos').trim();
   if (videosPath) {
-    app.useStaticAssets(videosPath, { prefix: '/videos/' });
+    app.useStaticAssets(videosPath, { prefix: '/videos', fallthrough: false, index: false });
   }
 
   const swaggerConfig = new DocumentBuilder()
