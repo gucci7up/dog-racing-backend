@@ -1,18 +1,19 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import type { AppConfig } from './config/configuration';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.enableCors({
     origin: ['https://pos.mbracesrd.lat', 'http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Authorization', 'Content-Type'],
   });
-
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -20,6 +21,12 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+
+  const configService = app.get(ConfigService<AppConfig>);
+  const videosPath = (configService.get<string>('videosPath', { infer: true }) ?? '/opt/mbraces/videos').trim();
+  if (videosPath) {
+    app.useStaticAssets(videosPath, { prefix: '/videos/' });
+  }
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('MBSport API')
@@ -38,7 +45,6 @@ async function bootstrap() {
   swaggerDoc.security = [{ bearer: [] }];
   SwaggerModule.setup('docs', app, swaggerDoc);
 
-  const configService = app.get(ConfigService);
   const port = configService.getOrThrow<number>('port', { infer: true });
 
   await app.listen(port);
