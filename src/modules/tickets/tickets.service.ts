@@ -239,10 +239,24 @@ export class TicketsService {
 
     const race = await this.prisma.race.findUnique({
       where: { id: params.raceId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, saleEndAt: true, numero: true },
     });
     if (!race) throw new NotFoundException('race no encontrada');
-    if (race.status !== RaceStatus.OPEN) throw new BadRequestException('race no está abierta');
+
+    const now = new Date();
+    const isPastSaleEnd = race.saleEndAt && now >= race.saleEndAt;
+
+    if (race.status !== RaceStatus.OPEN || isPastSaleEnd) {
+      console.log(
+        `[TICKET BLOCKED]\n` +
+        `raceId: ${race.id}\n` +
+        `raceNumber: ${race.numero}\n` +
+        `status: ${race.status}\n` +
+        `saleEndAt: ${race.saleEndAt ? race.saleEndAt.toISOString() : 'null'}\n` +
+        `currentTime: ${now.toISOString()}`
+      );
+      throw new BadRequestException('Las apuestas para esta carrera están cerradas.');
+    }
 
     const computedDetails = params.details.map((d) => {
       let amount: Prisma.Decimal;
