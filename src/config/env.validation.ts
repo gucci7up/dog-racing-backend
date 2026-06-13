@@ -16,4 +16,7 @@ export const envValidationSchema = Joi.object({
   JWT_EXPIRES_IN: Joi.string().default('1d'),
 
   BCRYPT_SALT_ROUNDS: Joi.number().integer().min(8).max(15).default(10),
+  MAX_WINNER_STAKE: Joi.number().min(0).default(0),
+  MAX_EXACTA_STAKE: Joi.number().min(0).default(0),
+  MAX_TRIFECTA_STAKE: Joi.number().min(0).default(0),
 }).unknown(true);

@@ -3,6 +3,7 @@ import { Interval } from '@nestjs/schedule';
 import { RaceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OddsEngineService } from '../odds/odds-engine/odds-engine.service';
+import { VirtualOddsService } from '../odds/virtual-odds.service';
 import { QueueService } from '../queue/queue.service';
 import { RaceSettlementService } from '../race-settlement/race-settlement.service';
 
@@ -16,6 +17,7 @@ export class RaceEngineService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly queueService: QueueService,
     private readonly oddsEngine: OddsEngineService,
+    private readonly virtualOdds: VirtualOddsService,
     private readonly raceSettlement: RaceSettlementService,
   ) {}
 
@@ -126,6 +128,7 @@ export class RaceEngineService implements OnModuleInit {
       });
 
       await this.oddsEngine.initializeForRace(created.id, tx);
+      await this.virtualOdds.generateOdds(created.id, tx);
 
       return created;
     });

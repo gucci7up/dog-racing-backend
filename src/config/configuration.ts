@@ -11,6 +11,9 @@ export type AppConfig = {
     expiresIn: string;
   };
   bcryptSaltRounds: number;
+  maxWinnerStake: number;
+  maxExactaStake: number;
+  maxTrifectaStake: number;
 };
 
 export default (): AppConfig => ({
@@ -26,4 +29,7 @@ export default (): AppConfig => ({
     expiresIn: process.env.JWT_EXPIRES_IN ?? '1d',
   },
   bcryptSaltRounds: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
+  maxWinnerStake: Number(process.env.MAX_WINNER_STAKE ?? 0),
+  maxExactaStake: Number(process.env.MAX_EXACTA_STAKE ?? 0),
+  maxTrifectaStake: Number(process.env.MAX_TRIFECTA_STAKE ?? 0),
 });

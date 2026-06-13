@@ -67,10 +67,7 @@ export class OddsEngineService {
       if (!race) throw new BadRequestException('race inválida');
       if (race.status !== RaceStatus.OPEN) return;
 
-      const betTypes = new Set<BetType>();
-
       for (const detail of params.details) {
-        betTypes.add(detail.betType);
         const updated = await client.raceOdds.updateMany({
           where: {
             raceId: params.raceId,
@@ -85,31 +82,6 @@ export class OddsEngineService {
 
         if (updated.count === 0) {
           throw new BadRequestException('selección inválida');
-        }
-      }
-
-      for (const betType of betTypes) {
-        const oddsRows = await client.raceOdds.findMany({
-          where: {
-            raceId: params.raceId,
-            betType,
-          },
-          select: { id: true, totalAmount: true, finalOdds: true },
-        });
-
-        const pool = oddsRows.reduce((acc, r) => acc.add(r.totalAmount), new Prisma.Decimal(0));
-
-        for (const row of oddsRows) {
-          if (row.finalOdds) continue;
-
-          const selectionAmount = row.totalAmount;
-          const nextOdds = selectionAmount.gt(0) ? pool.div(selectionAmount) : new Prisma.Decimal(1);
-          const normalized = nextOdds.lt(1) ? new Prisma.Decimal(1) : nextOdds;
-
-          await client.raceOdds.update({
-            where: { id: row.id },
-            data: { currentOdds: normalized },
-          });
         }
       }
     };
