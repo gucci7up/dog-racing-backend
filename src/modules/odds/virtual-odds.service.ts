@@ -226,8 +226,8 @@ export class VirtualOddsService {
       const freeIndexes = fixed.flatMap((value, index) => (value === null ? [index] : []));
       if (freeIndexes.length === 0) break;
 
-      const fixedMass = fixed.reduce((sum, value) => sum + (value ?? 0), 0);
-      const totalWeight = freeIndexes.reduce((sum, index) => sum + weights[index], 0);
+      const fixedMass = fixed.reduce<number>((sum, value) => sum + (value ?? 0), 0);
+      const totalWeight = freeIndexes.reduce<number>((sum, index) => sum + weights[index], 0);
       const provisional = new Map<number, number>();
 
       for (const index of freeIndexes) {
@@ -259,7 +259,7 @@ export class VirtualOddsService {
     }
 
     const projected = fixed.map((value) => value ?? 0);
-    const total = projected.reduce((sum, value) => sum + value, 0);
+    const total = projected.reduce<number>((sum, value) => sum + value, 0);
     return projected.map((value) => value / total);
   }
 
